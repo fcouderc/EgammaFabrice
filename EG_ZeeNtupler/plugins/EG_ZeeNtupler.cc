@@ -1,9 +1,9 @@
 // -*- C++ -*-
 //
-// Package:    EgammaWork/EG_ZeeNtupler
+// Package:    EgammaFabrice/EG_ZeeNtupler
 // Class:      EG_ZeeNtupler
 // 
-/**\class EG_ZeeNtupler EG_ZeeNtupler.cc EgammaWork/EG_ZeeNtupler/plugins/EG_ZeeNtupler.cc
+/**\class EG_ZeeNtupler EG_ZeeNtupler.cc EgammaFabrice/EG_ZeeNtupler/plugins/EG_ZeeNtupler.cc
 
  Description: [one line class summary]
 
@@ -41,7 +41,7 @@
 #include "DataFormats/Common/interface/ValueMap.h"
 #include "DataFormats/PatCandidates/interface/VIDCutFlowResult.h"
 
-#include "EgammaWork/EG_ZeeNtupler/interface/EGEnergyCorrectorSemiParam.h"
+#include "EgammaFabrice/EG_ZeeNtupler/interface/EGEnergyCorrectorSemiParam.h"
 #include "DataFormats/EcalDetId/interface/EBDetId.h"
 #include "DataFormats/EcalDetId/interface/EEDetId.h"
 #include "DataFormats/Math/interface/deltaR.h"
@@ -103,7 +103,7 @@ private:
   virtual void beginJob() override;
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
   virtual void endJob() override;
-  
+  void printCutFlowResult(vid::CutFlowResult &cutflow);
   EGEnergyCorrectorSemiParam _cor1,_cor2,_cor3,_cor4;
 
       // ----------member data ---------------------------
@@ -147,7 +147,7 @@ EG_ZeeNtupler::EG_ZeeNtupler(const edm::ParameterSet& iConfig)
   _zeeTree->Branch("passIdPho"   , _phoId    , "passIdPho[3]/I");
   _zeeTree->Branch("isEBEle"     , _isEB     , "isEB[3]/I");
   _zeeTree->Branch("nPV"         , &_nVtx    , "nPV/I");
-  _zeeTree->Branch("rho"         , &_rho    , "rho/D");
+  _zeeTree->Branch("rho"         , &_rho     , "rho/D");
   _zeeTree->Branch("runNumber"   , &_runId   , "runNumber/I");
 
 
@@ -186,11 +186,11 @@ EG_ZeeNtupler::EG_ZeeNtupler(const edm::ParameterSet& iConfig)
 
 
 
-  _cor1.setGBRForestFromTooFile("EgammaWork/EG_ZeeNtupler/data/cms_wereg_ph_bx25_AllPositions.root" , 0);
-  _cor2.setGBRForestFromTooFile("EgammaWork/EG_ZeeNtupler/data/cms_wereg_ph_bx25_PS.root"           , 1);
-  _cor3.setGBRForestFromTooFile("EgammaWork/EG_ZeeNtupler/data/cms_wereg_ph_bx25_noPS.root"         , 2);
-  //  _cor4.setGBRForestFromTooFile("EgammaWork/EG_ZeeNtupler/data/cms_wereg_ph_bx25_noPS_noHoE.root"   , 3);
-  _cor4.setGBRForestFromTooFile("EgammaWork/EG_ZeeNtupler/data/cms_wereg_ph_bx25_db.root"   , 1);
+  _cor1.setGBRForestFromTooFile("EgammaFabrice/EG_ZeeNtupler/data/cms_wereg_ph_bx25_AllPositions.root" , 0);
+  _cor2.setGBRForestFromTooFile("EgammaFabrice/EG_ZeeNtupler/data/cms_wereg_ph_bx25_PS.root"           , 1);
+  _cor3.setGBRForestFromTooFile("EgammaFabrice/EG_ZeeNtupler/data/cms_wereg_ph_bx25_noPS.root"         , 2);
+  //  _cor4.setGBRForestFromTooFile("EgammaFabrice/EG_ZeeNtupler/data/cms_wereg_ph_bx25_noPS_noHoE.root"   , 3);
+  _cor4.setGBRForestFromTooFile("EgammaFabrice/EG_ZeeNtupler/data/cms_wereg_ph_bx25_db.root"   , 1);
 
 }
 
@@ -240,6 +240,8 @@ EG_ZeeNtupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) 
   // Get Electron / Photon VID 
   edm::Handle<edm::ValueMap<bool> > elec_id;
   iEvent.getByToken(eleIdMapToken_ ,elec_id);
+  edm::Handle<edm::ValueMap<vid::CutFlowResult> > elec_id_cutflow;
+  iEvent.getByToken(eleIdMapToken_, elec_id_cutflow);
   edm::Handle<edm::ValueMap<bool> > pho_id;
   iEvent.getByToken(phoIdMapToken_ ,pho_id);
 
@@ -300,7 +302,7 @@ EG_ZeeNtupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) 
       for( size_t ipho = 0; ipho < photons->size(); ++ipho ) {
 	const auto pho = photons->ptrAt(ipho);
 	double dr = reco::deltaR(ele->superCluster()->position(),pho->superCluster()->position());
-	std::cout << " dr[ele,photon " << ipho << "] = " << dr << std::endl;
+	//	std::cout << " dr[ele,photon " << ipho << "] = " << dr << std::endl;
 
 	if( pho->superCluster() == ele->superCluster() || dr < 0.02 ) {
 	  if( phoMatched ) std::cout << " electron was already matched to a photon... ???? ... " << std::endl;
@@ -312,7 +314,8 @@ EG_ZeeNtupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) 
 	    _phoE2[iEleSaved] = _cor2.CorrectedEnergyAndResolution(*pho.get(),iSetup,_rho,vertices->size()).first;
 	    _phoE3[iEleSaved] = _cor3.CorrectedEnergyAndResolution(*pho.get(),iSetup,_rho,vertices->size()).first;
 	    _phoE4[iEleSaved] = _cor4.CorrectedEnergyAndResolution(*pho.get(),iSetup,_rho,vertices->size()).first;
-	    
+
+	    /*
 	    std::cout << " * phoE    = " << _phoE[ iEleSaved]   << " Ep4(std) = " << pho->p4().energy() << "  p4 type: " << pho->getCandidateP4type() << std::endl
 	      //		      << "                        - E[ecal] = " << pho->p4(reco::Photon::ecal_photons).energy() << std::endl
 	      //		      << "                        - E[reg1] = " << pho->p4(reco::Photon::regression1).energy() << std::endl
@@ -324,13 +327,20 @@ EG_ZeeNtupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) 
 	      //                                         << " " << _cor2.CorrectedEnergyAndResolution(*pho.get(),iSetup,_rho,vertices->size()+2).first <<std::endl 
 		      << "      - E3 = " << _phoE3[iEleSaved] << std::endl 
 		      << "      - E4 = " << _phoE4[iEleSaved] << std::endl ;
-	    
+	    */
 	    phoMatched = true;
 	  }
 	}
-      }      
-      if( !phoMatched ) std::cout << " did not find any photon matching the electron" << std::endl;
 
+      } 
+
+      if( !phoMatched ) std::cout << " did not find any photon matching the electron" << std::endl;
+      /// VID cut flow
+      vid::CutFlowResult fullCutFlowData = (*elec_id_cutflow)[ele];
+      std::cout << "Will you work now?" << std::endl;
+      std::cout << "DEBUG CutFlow, full info for cand with pt = " <<  ele->pt() << std::endl;
+      printCutFlowResult(fullCutFlowData);
+      
       if( !iEvent.isRealData() ) {
 	double dR = 999;
 	int iMatchedGen = -1;
@@ -377,6 +387,25 @@ EG_ZeeNtupler::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   desc.setUnknown();
   descriptions.addDefault(desc);
 }
+
+
+void 
+EG_ZeeNtupler::printCutFlowResult(vid::CutFlowResult &cutflow) {
+
+  printf("    CutFlow name= %s    decision is %d\n",
+         cutflow.cutFlowName().c_str(),
+         (int) cutflow.cutFlowPassed());
+  int ncuts = cutflow.cutFlowSize();
+  printf(" Index                               cut name              isMasked    value-cut-upon     pass?\n");
+  for(int icut = 0; icut<ncuts; icut++){
+    printf("  %2d      %50s    %d        %f          %d\n", icut,
+           cutflow.getNameAtIndex(icut).c_str(),
+           (int)cutflow.isCutMasked(icut),
+           cutflow.getValueCutUpon(icut),
+           (int)cutflow.getCutResultByIndex(icut));
+  }
+}
+
 
 //define this as a plug-in
 DEFINE_FWK_MODULE(EG_ZeeNtupler);

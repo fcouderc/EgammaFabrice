@@ -1,4 +1,4 @@
-#include "EgammaWork/EG_ZeeNtupler/interface/EGEnergyCorrectorSemiParam.h"
+#include "EgammaFabrice/EG_ZeeNtupler/interface/EGEnergyCorrectorSemiParam.h"
 
 #include "CondFormats/DataRecord/interface/GBRDWrapperRcd.h"
 #include "DataFormats/EcalDetId/interface/EcalSubdetector.h"
